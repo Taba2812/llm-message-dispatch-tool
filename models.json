@@ -1,0 +1,30 @@
+[
+  {
+    "models": [
+      "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+      "black-forest-labs/FLUX.1-schnell-Free",
+      "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    ],
+    "messages": [
+      {
+        "role": "system",
+        "content": "Explain to a five year old."
+      },
+      {
+        "role": "user",
+        "content": "What is quantum physics?"
+      }
+    ],
+    "temperature": 0.5,
+    "max_tokens": null
+  },
+  {
+    "model": "model",
+    "prompt": "prompt",
+    "width": 512,
+    "height": 512,
+    "steps": 4,
+    "n": 1,
+    "response_format": "b64_json"
+  }
+]

@@ -1,0 +1,7 @@
+bson
+dotenv
+fastapi
+pymongo
+requests
+together
+uvicorn
