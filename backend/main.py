@@ -8,6 +8,7 @@ from bson.errors import InvalidId
 from datetime import datetime
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
@@ -40,6 +41,19 @@ TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 together_client = Together(api_key=TOGETHER_API_KEY)
 
 app = FastAPI()
+
+origins = [
+    "http://127.0.0.1:5173",  # React frontend URL
+    "http://localhost:5173",   # Sometimes localhost can be used as the origin
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # React dev server
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class Message(BaseModel):
     """Class for user messages"""
@@ -80,7 +94,7 @@ async def store_message(message: Message, responses):
 @app.get("/")
 async def root():
     """Root check"""
-    return {"message" : "Welcome to the LLM Message Dispatch Tool"}
+    return {"message" : "LLM Message Dispatch Tool"}
 
 @app.get("/messages")
 async def get_messages():
