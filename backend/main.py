@@ -1,15 +1,17 @@
 """LLM Message Dispatcher Tool"""
 
 import asyncio
-from datetime import datetime
 import os
-from bson import ObjectId # type: ignore
-from dotenv import load_dotenv # type: ignore
-from fastapi import FastAPI, HTTPException # type: ignore
-from pydantic import BaseModel # type: ignore
-from pymongo import MongoClient # type: ignore
-from pymongo.server_api import ServerApi # type: ignore
-from together import Together # type: ignore
+
+from bson import ObjectId
+from bson.errors import InvalidId
+from datetime import datetime
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+from together import Together
 
 # uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -46,15 +48,6 @@ class Message(BaseModel):
     temperature: float
     max_tokens: int | None
 
-    def to_dict(self) -> dict:
-        """Returns the API request as a dictionary"""
-        return {
-            "models": self.models,
-            "messages": self.messages,
-            "temperature": self.temperature,
-            "max_tokens": self.max_tokens
-        }
-
 async def call_model(model, message: Message):
     """Sends message to a specific model"""
     try:
@@ -83,49 +76,63 @@ async def store_message(message: Message, responses):
     result = collection.insert_one(document)
     return {"message": "Stored successfully", "id": str(result.inserted_id)}
 
-@app.post("/send_message")
-async def send_message(message: Message):
-    """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
-    tasks = [call_model(model, message) for model in message.models]
-
-    responses = await asyncio.gather(*tasks)
-    await store_message(message, responses)
-
-    return responses
+# GET
+@app.get("/")
+async def root():
+    """Root check"""
+    return {"message" : "Welcome to the LLM Message Dispatch Tool"}
 
 @app.get("/messages")
 async def get_messages():
-    """Returns all messages by ID"""
-    message_ids = [str(document["_id"]) for document in collection.find()]
-
-    return message_ids
+    """Returns all message IDs"""
+    message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+    return {"message_ids": message_ids}
 
 @app.get("/messages/{message_id}")
 async def get_message(message_id: str):
-    """Returns a message from its ID"""
-    document = collection.find_one({"_id": ObjectId(message_id)})
+    """Returns a message by ID"""
+    try:
+        obj_id = ObjectId(message_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid message ID format")
+
+    document = collection.find_one({"_id": obj_id})
     if not document:
         raise HTTPException(status_code=404, detail="Message not found")
 
     document["_id"] = str(document["_id"])
     return document
 
-# {
-#   "models": [
-#     "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-#     "black-forest-labs/FLUX.1-schnell-Free",
-#     "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-#   ],
-#   "messages": [
-#     {
-#       "role": "system",
-#       "content": "Be abstract"
-#     },
-#     {
-#       "role": "user",
-#       "content": "What is the meaning of life?"
-#     }
-#   ],
-#   "temperature": 0.5,
-#   "max_tokens": 200
-# }
+# POST
+@app.post("/send_message")
+async def send_message(message: Message):
+    """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
+    try:
+        tasks = [call_model(model, message) for model in message.models]
+        responses = await asyncio.gather(*tasks)
+
+        message_id = await store_message(message, responses)
+
+        return {
+            "message_id": str(message_id),
+            "responses": responses
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
+
+# PUT/PATCH
+
+# DELETE
+@app.delete("/messages/{message_id}")
+async def delete_message(message_id: str):
+    """Deletes a message by ID and returns confirmation"""
+    try:
+        obj_id = ObjectId(message_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid message ID format")
+
+    result = collection.delete_one({"_id": obj_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    return {"message": f"Message {message_id} deleted successfully"}
