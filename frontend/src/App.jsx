@@ -14,7 +14,7 @@ function App() {
 
   const handleSendNewMessage = () => {
     console.log('Send new message clicked');
-    // Later: show form or navigate to another route
+    navigate('/send-message');
   };
 
   const handleReadPreviousMessages = () => {

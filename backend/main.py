@@ -80,6 +80,7 @@ async def store_message(message: Message, responses):
     """Stores message in MongoDB"""
 
     document = {
+        "models": message.models,
         "messages": message.messages,
         "responses": responses,
         "temperature": message.temperature,
@@ -118,7 +119,7 @@ async def get_message(message_id: str):
     return document
 
 # POST
-@app.post("/send_message")
+@app.post("/send-message")
 async def send_message(message: Message):
     """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
     try:

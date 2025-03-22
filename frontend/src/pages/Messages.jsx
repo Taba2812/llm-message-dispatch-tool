@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function Messages() {
   const [messageIds, setMessageIds] = useState([]);
@@ -6,10 +7,9 @@ function Messages() {
   const apiUrl = import.meta.env.VITE_API_URL
 
   useEffect(() => {
-    fetch(apiUrl + "/messages") // Replace with your actual API endpoint
+    fetch(`${apiUrl}/messages`)
       .then((res) => res.json())
       .then((data) => {
-        // Assuming the API response is of the shape you've shared
         setMessageIds(data.message_ids);
         setLoading(false);
       })
@@ -29,12 +29,15 @@ function Messages() {
       ) : (
         <ul>
           {messageIds.map((messageId) => (
-            <li key={messageId}>{messageId}</li> // Displaying the message ID
+            <li key={messageId}>
+              <Link to={`/messages/${messageId}`}>{messageId}</Link>
+            </li>
           ))}
         </ul>
       )}
     </div>
   );
+  
 }
 
 export default Messages;
