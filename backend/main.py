@@ -89,7 +89,7 @@ async def store_message(message: Message, responses):
     }
 
     result = collection.insert_one(document)
-    return {"message": "Stored successfully", "id": str(result.inserted_id)}
+    return str(result.inserted_id)
 
 # GET
 @app.get("/")

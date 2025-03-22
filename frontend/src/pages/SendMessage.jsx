@@ -1,6 +1,10 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function SendMessage() {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const [messages, setMessages] = useState([
     { role: "system", content: "" },
     { role: "user", content: "" },
@@ -14,6 +18,11 @@ function SendMessage() {
     setMessages(updated);
   };
 
+  const handleResponse = (messageId) => {
+    //console.log(response.message_id)
+    navigate(`/messages/${messageId}`);
+  };
+
   const handleSubmit = async () => {
     const payload = {
         models: [
@@ -22,31 +31,42 @@ function SendMessage() {
           ],
       messages: messages.filter((msg) => msg.content.trim() !== ""),
       temperature: Math.min(2, Math.max(0, parseFloat(temperature))),
-      max_tokens: null,
+      max_tokens: null
     };
 
+    setIsLoading(true);
     try {
-      const res = await fetch("/send-message", {
+      const res = await fetch(`${apiUrl}/send-message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        console.error("Raw response was not valid JSON:", text);
+        throw new Error("Invalid JSON returned from the server");
+      }
       setResponse(data);
     } catch (error) {
       console.error("Failed to send message:", error);
       setResponse({ error: "Failed to send message." });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div>
-      <h1>Send Message API</h1>
+      <h1 className="title">Send Message</h1>
 
       <div>
         {messages.map((msg, i) => (
-          <div key={i}>
-            <label className="block text-sm font-medium mb-1">{msg.role.charAt(0).toUpperCase() + msg.role.slice(1) + " message "}</label>
+          <div className="item" key={i}>
+            <label>{msg.role.charAt(0).toUpperCase() + msg.role.slice(1) + " message "}</label>
             <input
               value={msg.content}
               onChange={(e) => handleMessageChange(i, e.target.value)}
@@ -57,26 +77,24 @@ function SendMessage() {
       </div>
 
       <div>
-        <label>Temperature (0 to 2)</label>
         <input
           type="range"
           min="0"
           max="2"
           step="0.1"
           value={temperature}
-          onChange={(e) => setTemperature(e.target.value)}
+          onChange={(e) => setTemperature(parseFloat(e.target.value))}
         />
-        <div className="text-sm mt-1">Current: {temperature}</div>
+        <div className="item">Temperature: <strong>{temperature} [Min: 0, Max: 2]</strong></div>
       </div>
 
-      <button onClick={handleSubmit}>
-        Send
+      <button onClick={handleSubmit} disabled={isLoading}>
+        {isLoading ? "Sending..." : "Send"}
       </button>
 
       {response && (
-        <div className="mt-6 p-4 border rounded bg-gray-50">
-          <h3 className="font-semibold mb-2">Response:</h3>
-          <pre className="whitespace-pre-wrap">{JSON.stringify(response, null, 2)}</pre>
+        <div>
+          <button onClick={() => handleResponse(response.message_id)}>See response</button>
         </div>
       )}
     </div>

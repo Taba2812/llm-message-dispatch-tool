@@ -27,13 +27,11 @@ function Messages() {
       {messageIds.length === 0 ? (
         <p>No messages available</p>
       ) : (
-        <ul>
-          {messageIds.map((messageId) => (
-            <li key={messageId}>
-              <Link to={`/messages/${messageId}`}>{messageId}</Link>
-            </li>
-          ))}
-        </ul>
+          messageIds.map((messageId) => (
+            <div key={messageId}>
+              <Link className='item' to={`/messages/${messageId}`}>{messageId}</Link>
+            </div>
+          ))
       )}
     </div>
   );

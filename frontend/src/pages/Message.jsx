@@ -26,25 +26,24 @@ function Message() {
 
   return (
     <div>
-      <h2>Message ID: {message._id}</h2>
-      <h4>Temperature: {message.temperature}</h4>
-      <h4>Max Tokens: {message.max_tokens}</h4>
-      <h4>Timestamp: {new Date(message.timestamp).toLocaleString()}</h4>
+      <div><strong className='item'>Message ID </strong><strong>{message._id}</strong></div>
+      <div><strong className='item'>Temperature </strong><strong>{message.temperature}</strong></div>
+      <div><strong className='item'>Max Tokens </strong><strong>{message.max_tokens || "No limit"}</strong></div>
+      <div><strong className='item'>Timestamp </strong><strong>{new Date(message.timestamp).toLocaleString()}</strong></div>
+
 
       <h2>Prompt</h2>
-      <ul>
         {message.messages.map((msg, index) => (
-          <li key={index}>
-            <strong>{msg.role.charAt(0).toUpperCase() + msg.role.slice(1)}:</strong> {msg.content}
-          </li>
+          <div key={index}>
+            <strong className='item'>{msg.role.charAt(0).toUpperCase() + msg.role.slice(1) + " message"}:</strong> <strong>{msg.content}</strong>
+          </div>
         ))}
-      </ul>
 
       <h2>Model Responses</h2>
   <ul>
     {message.responses.map((res, index) => (
       <li key={index}>
-        <strong>{message.models?.[index] || 'Unknown Model'}:</strong> {res}
+        <strong className='item'>{message.models?.[index] || 'Unknown Model'}:</strong><strong> {res}</strong>
       </li>
     ))}
   </ul>

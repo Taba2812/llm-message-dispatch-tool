@@ -1,13 +1,38 @@
 body {
-  background-color: white;
+  background-color: black;
 }
 
-h1 {
-  color: black;
+h1,h2,h3,h4,h5,h6 {
+  color: white;
   text-align: left;
 }
 
 p {
+  color: white;
   font-family: verdana;
   font-size: 20px;
+}
+
+strong {
+  color: white
+}
+
+.title {
+  color: white;
+  padding: 1px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.item {
+  color: lightgreen;
+  padding: 1px;
+  margin-bottom: 20px;
+}
+
+.element {
+  background-color: grey;
+  color: white;
+  padding: 1px;
+  margin-bottom: 10px;
 }
