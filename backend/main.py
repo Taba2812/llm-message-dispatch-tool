@@ -2,14 +2,16 @@
 
 import asyncio
 import os
+import sys
 
 from bson import ObjectId
 from bson.errors import InvalidId
 from datetime import datetime
 from dotenv import load_dotenv
+from enum import Enum
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 from together import Together
@@ -55,19 +57,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class Role(str, Enum):
+    system = "system"
+    user = "user"
+
+class ChatMessage(BaseModel):
+    role: Role
+    content: str
+
 class Message(BaseModel):
     """Class for user messages"""
-    models: list[str]
-    messages: list
-    temperature: float
-    max_tokens: int | None
+    models: list[str] = Field(default_factory=lambda: [
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+        "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+    ])
+    messages: list[ChatMessage]
+    temperature: float = 1.0
+    max_tokens: int | None = None
+
+    def to_dict(self):
+        return [message.model_dump() for message in self.messages]
+
+    @model_validator(mode="after")
+    def check_required_roles(self):
+        roles = {m.role for m in self.messages}
+        if not {"system", "user"}.issubset(roles):
+            raise ValueError("Messages must include both a 'system' and a 'user' role.")
+        return self
 
 async def call_model(model, message: Message):
     """Sends message to a specific model"""
     try:
         response = together_client.chat.completions.create(
             model=model,
-            messages=message.messages,
+            messages=message.to_dict(),
             temperature=message.temperature,
             max_tokens=message.max_tokens
         )
@@ -76,12 +99,12 @@ async def call_model(model, message: Message):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-async def store_message(message: Message, responses):
+async def store_message(message: Message, responses: list):
     """Stores message in MongoDB"""
 
     document = {
         "models": message.models,
-        "messages": message.messages,
+        "messages": message.to_dict(),
         "responses": responses,
         "temperature": message.temperature,
         "max_tokens": message.max_tokens,
