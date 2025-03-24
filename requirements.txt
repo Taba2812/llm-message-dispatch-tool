@@ -1,4 +1,3 @@
-bson
 dotenv
 fastapi
 pymongo
