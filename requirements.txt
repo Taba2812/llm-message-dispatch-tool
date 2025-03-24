@@ -7,3 +7,5 @@ pytest-cov
 requests
 together
 uvicorn
+
+tellldadaj
