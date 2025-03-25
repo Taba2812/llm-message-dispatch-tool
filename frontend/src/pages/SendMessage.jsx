@@ -12,6 +12,11 @@ function SendMessage() {
   const [temperature, setTemperature] = useState(0.5);
   const [response, setResponse] = useState(null);
 
+  const defaultModels = [
+    "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+    "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+  ]
+
   const handleMessageChange = (index, value) => {
     const updated = [...messages];
     updated[index].content = value;
@@ -23,17 +28,7 @@ function SendMessage() {
     navigate(`/messages/${messageId}`);
   };
 
-  const handleSubmit = async () => {
-    const payload = {
-        models: [
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
-          ],
-      messages: messages.filter((msg) => msg.content.trim() !== ""),
-      temperature: Math.min(2, Math.max(0, parseFloat(temperature))),
-      max_tokens: null
-    };
-
+  const sendPayload = async (payload) => {
     setIsLoading(true);
     try {
       const res = await fetch(`${apiUrl}/send-message`, {
@@ -57,11 +52,72 @@ function SendMessage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  const handleSubmit = async () => {
+    const payload = {
+        models: [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
+          ],
+        messages: messages,
+        temperature: Math.min(2, Math.max(0, parseFloat(temperature))),
+        max_tokens: null
+    };
+
+    sendPayload(payload);
   };
+
+  const [file, setFile] = useState(null);
+  const [payload, setPayload] = useState(null);
+
+  const handleFileChange = (event) => {
+    const uploadedFile = event.target.files[0];
+    setFile(uploadedFile);
+    console.log('File selected:', uploadedFile);
+  };
+
+  const handleUpload = async () => {
+    if (!file) return alert('No file selected!');
+    const reader = new FileReader();
+    console.log(reader);
+    reader.onload = (e) => {
+      console.log("We are here!")
+      try {
+        const json = JSON.parse(e.target.result);
+        const jsonModels = json.models;
+        const jsonMessages = json.messages;
+        const jsonTemperature = json.temperature || 1;
+        const jsonMaxTokens = json.max_tokens || null;
+
+        console.log(json);
+    
+        const payload = {
+          models: jsonModels,
+          messages: jsonMessages,
+          temperature: Math.min(2, Math.max(0, parseFloat(jsonTemperature))),
+          max_tokens: jsonMaxTokens
+        };
+        setPayload(payload);
+        sendPayload(payload);
+      } catch (error) {
+        alert('Error reading or parsing the file. Please upload a valid JSON file.');
+      }
+    };
+
+    reader.readAsText(file);
+  }
 
   return (
     <div>
       <h1 className="title">Send Message</h1>
+
+      <div className="model">
+        <p>These models will be used:</p>
+        {defaultModels.map((item, index) => (
+          <li className="model" key={index}>{item}</li>
+        ))}
+      </div>
 
       <div>
         {messages.map((msg, i) => (
@@ -86,11 +142,18 @@ function SendMessage() {
           onChange={(e) => setTemperature(parseFloat(e.target.value))}
         />
         <div className="item">Temperature: <strong>{temperature} [Min: 0, Max: 2]</strong></div>
+        <button onClick={handleSubmit} disabled={isLoading}>
+          {isLoading ? "Sending..." : "Send"}
+        </button>
       </div>
 
-      <button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading ? "Sending..." : "Send"}
-      </button>
+      <div className="model">
+        <p>If you know what you are doing, you can upload your own JSON file: </p>
+        <input type="file" onChange={handleFileChange} />
+        <button onClick={handleUpload}>
+          {isLoading ? "Sending..." : "Send"}
+        </button>
+      </div>
 
       {response && (
         <div>

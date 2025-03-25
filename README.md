@@ -17,3 +17,6 @@ Frontend Setup:
 - nvm alias default 20 (to make it default)
 - nvm use 20
 - npm install
+
+Frontend Deployment
+- npm run dev

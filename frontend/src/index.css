@@ -10,7 +10,7 @@ h1,h2,h3,h4,h5,h6 {
 p,div {
   color: white;
   font-family: Verdana, Geneva, sans-serif;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 strong {
@@ -41,5 +41,6 @@ strong {
   background-color: grey;
   color: lightgreen;
   padding: 1px;
+  margin-top: 20px;
   margin-bottom: 20px;
 }
