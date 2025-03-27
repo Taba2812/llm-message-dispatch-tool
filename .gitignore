@@ -2,6 +2,8 @@
 *.log
 
 backend/__pycache__/
+backend/__init__.py
+backend/.pytest_cache
 
 frontend/.pnp
 frontend/.pnp.js

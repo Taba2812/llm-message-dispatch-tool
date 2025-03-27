@@ -115,18 +115,18 @@ async def store_message(message: Message, responses: list):
     return str(result.inserted_id)
 
 # GET
-@app.get("/")
+@app.get("/", status_code=200)
 async def root():
     """Root check"""
     return {"message" : "LLM Message Dispatch Tool"}
 
-@app.get("/messages")
+@app.get("/messages", status_code=200)
 async def get_messages():
     """Returns all message IDs"""
     message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
     return {"message_ids": message_ids}
 
-@app.get("/messages/{message_id}")
+@app.get("/messages/{message_id}", status_code=200)
 async def get_message(message_id: str):
     """Returns a message by ID"""
     try:
@@ -142,7 +142,7 @@ async def get_message(message_id: str):
     return document
 
 # POST
-@app.post("/send-message")
+@app.post("/send-message", status_code=201)
 async def send_message(message: Message):
     """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
     try:
@@ -161,7 +161,7 @@ async def send_message(message: Message):
 # PUT/PATCH
 
 # DELETE
-@app.delete("/messages/{message_id}")
+@app.delete("/messages/{message_id}", status_code=200)
 async def delete_message(message_id: str):
     """Deletes a message by ID and returns confirmation"""
     try:
