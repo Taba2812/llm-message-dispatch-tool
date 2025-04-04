@@ -61,7 +61,7 @@ function SendMessage() {
             "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
           ],
         messages: messages,
-        temperature: Math.min(2, Math.max(0, parseFloat(temperature))),
+        temperature: Math.min(1, Math.max(0, parseFloat(temperature))),
         max_tokens: null
     };
 
@@ -90,12 +90,18 @@ function SendMessage() {
         const jsonTemperature = json.temperature || 1;
         const jsonMaxTokens = json.max_tokens || null;
 
+        // Validation check: Ensure 'models' and 'messages' exist and are not empty
+        if (!jsonModels || !jsonMessages || jsonModels.length === 0 || jsonMessages.length === 0) {
+          alert("Invalid file. Please upload a valid JSON file with non-empty 'models' and 'messages'.");
+          return;
+        }
+
         console.log(json);
     
         const payload = {
           models: jsonModels,
           messages: jsonMessages,
-          temperature: Math.min(2, Math.max(0, parseFloat(jsonTemperature))),
+          temperature: Math.min(1, Math.max(0, parseFloat(jsonTemperature))),
           max_tokens: jsonMaxTokens
         };
         setPayload(payload);
@@ -136,12 +142,12 @@ function SendMessage() {
         <input
           type="range"
           min="0"
-          max="2"
+          max="1"
           step="0.1"
           value={temperature}
           onChange={(e) => setTemperature(parseFloat(e.target.value))}
         />
-        <div className="item">Temperature: <strong>{temperature} [Min: 0, Max: 2]</strong></div>
+        <div className="item">Temperature: <strong>{temperature} [Min: 0, Max: 1]</strong></div>
         <button onClick={handleSubmit} disabled={isLoading}>
           {isLoading ? "Sending..." : "Send"}
         </button>

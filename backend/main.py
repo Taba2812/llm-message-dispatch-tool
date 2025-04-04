@@ -46,7 +46,7 @@ app = FastAPI()
 
 origins = [
     "http://127.0.0.1:5173",  # React frontend URL
-    "http://localhost:5173",   # Sometimes localhost can be used as the origin
+    "http://localhost:5173",  # Probably same but had some problems sometimes
 ]
 
 app.add_middleware(
@@ -72,7 +72,7 @@ class Message(BaseModel):
         "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"
     ])
     messages: list[ChatMessage]
-    temperature: float = 1.0
+    temperature: float = 0.5
     max_tokens: int | None = None
 
     def to_dict(self):
@@ -111,7 +111,11 @@ async def store_message(message: Message, responses: list):
         "timestamp": datetime.now()
     }
 
-    result = collection.insert_one(document)
+    try:
+        result = collection.insert_one(document)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    
     return str(result.inserted_id)
 
 # GET
@@ -123,7 +127,10 @@ async def root():
 @app.get("/messages", status_code=200)
 async def get_messages():
     """Returns all message IDs"""
-    message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+    try:
+        message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch messages: {e}")
     return {"message_ids": message_ids}
 
 @app.get("/messages/{message_id}", status_code=200)
@@ -134,11 +141,14 @@ async def get_message(message_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid message ID format")
 
-    document = collection.find_one({"_id": obj_id})
-    if not document:
-        raise HTTPException(status_code=404, detail="Message not found")
+    try:
+        document = collection.find_one({"_id": obj_id})
+        if not document:
+            raise HTTPException(status_code=404, detail="Message not found")
+        document["_id"] = str(document["_id"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch message: {e}")
 
-    document["_id"] = str(document["_id"])
     return document
 
 # POST
@@ -159,6 +169,7 @@ async def send_message(message: Message):
         raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
 
 # PUT/PATCH
+# Messages are not supposed to be modified or updated
 
 # DELETE
 @app.delete("/messages/{message_id}", status_code=200)
@@ -169,7 +180,11 @@ async def delete_message(message_id: str):
     except InvalidId:
         raise HTTPException(status_code=400, detail="Invalid message ID format")
 
-    result = collection.delete_one({"_id": obj_id})
+    try:
+        result = collection.delete_one({"_id": obj_id})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
+            
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Message not found")
 
