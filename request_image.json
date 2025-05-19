@@ -1,9 +1,6 @@
 {
-    "model": "black-forest-labs/FLUX.1-schnell-Free",
-    "prompt": "Quantum Physics?",
-    "width": 512,
-    "height": 512,
-    "steps": 4,
-    "n": 1,
-    "response_format": "b64_json"
-  }
+  "model": "black-forest-labs/FLUX.1-schnell-Free",
+  "n": 1,
+  "prompt": "A table full of food",
+  "steps": 4
+}

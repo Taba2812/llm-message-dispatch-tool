@@ -84,6 +84,24 @@ class Message(BaseModel):
         if not {"system", "user"}.issubset(roles):
             raise ValueError("Messages must include both a 'system' and a 'user' role.")
         return self
+    
+system_prompt = (
+    "First string"
+    "Second string"
+)
+
+class ImageMessage(BaseModel):
+    "Class for image prompt"
+    model: str = "black-forest-labs/FLUX.1-schnell-Free"
+    n: int = 1
+    prompt: str
+    # negative_prompt: str
+    steps: int = 20
+    # height: int = 1024
+    # width: int = 1024
+    # guidance: float = 3.5   # Higher values (e.g., 8-10) make the output more faithful to the prompt, while lower values (e.g., 1-5) encourage more creative freedom.
+    # response_format: str = "b64_json"
+    # output_format: str = "jpeg"
 
 async def call_model(model, message: Message):
     """Sends message to a specific model"""
@@ -117,6 +135,11 @@ async def store_message(message: Message, responses: list):
         raise HTTPException(status_code=500, detail=str(e)) from e
     
     return str(result.inserted_id)
+
+async def store_image(message: ImageMessage, response):
+    """Stores image in the database"""
+    print("Image stored")
+    return "1"
 
 # GET
 @app.get("/", status_code=200)
@@ -167,6 +190,34 @@ async def send_message(message: Message):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
+
+@app.post("/generate-image", status_code=201)
+async def generate_image(message: ImageMessage, ):
+    """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
+    try:
+        response = together_client.images.generate(
+            model = message.model,
+            n = message.n,
+            prompt = message.prompt,
+            # negative_prompt = message.negative_prompt,
+            steps = message.steps,
+            # height = message.height,
+            # width = message.width,
+            # guidance = message.guidance,
+            # response_format = message.response_format,
+            # output_format = message.output_format
+        )
+
+        print(response.data[0].b64_json)
+
+        # image_id = await store_image(message, response)
+        # print(image_id)
+
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Together API failed: {str(e)}")
 
 # PUT/PATCH
 # Messages are not supposed to be modified or updated
