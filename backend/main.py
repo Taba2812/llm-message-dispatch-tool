@@ -151,10 +151,19 @@ async def root():
 async def get_messages():
     """Returns all message IDs"""
     try:
-        message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+        # message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+        messages = []
+        for doc in collection.find({}, {"_id": 1, "messages": 1, "timestamp": 1}):
+            first_user_msg = next((m["content"] for m in doc["messages"] if m["role"] == "user"), "No user message")
+            messages.append({
+                "id": str(doc["_id"]),
+                "preview": first_user_msg[:100],  # Truncate to 100 chars
+                "timestamp": doc.get("timestamp")
+            })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch messages: {e}")
-    return {"message_ids": message_ids}
+    # return {"message_ids": message_ids}
+    return {"messages": messages}
 
 @app.get("/messages/{message_id}", status_code=200)
 async def get_message(message_id: str):
