@@ -49,8 +49,38 @@ function Message() {
   };
 
   const handleImage = async () => {
-    if (!window.confirm("Next step: integrate API endpoint (already in backend)")) return;
-    else return;
+    if (!window.confirm("Generate image based on the prompt responses?")) return;
+    const prompt = "Generate an image of the recipe based on the following LLM responses. Don't put text or words of any kind."
+    try {
+      const res = await fetch(`${apiUrl}/generate-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "black-forest-labs/FLUX.1-schnell-Free",
+          prompt: prompt,
+          steps: 4,
+          n: 1,
+          message_id: params.messageId
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || "Failed to generate image");
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Image generation failed");
+
+      const updated = await fetch(`${apiUrl}/messages/${params.messageId}`);
+      const updatedData = await updated.json();
+      setMessage(updatedData);
+      alert("Image generated!");
+    } catch(error) {
+      alert("Error: " + error.message)
+    }
   }
 
   const handleScamper = async () => {
@@ -118,6 +148,14 @@ function Message() {
       </li>
     ))}
   </ul>
+  <div>
+    {message.image_url && (
+      <div style={{ marginTop: '1rem' }}>
+        <h3>Generated Image</h3>
+        <img src={message.image_url} alt="Generated" style={{ width: "256px", height: "256px", objectFit: "cover" }} />
+      </div>
+    )}
+  </div>
   <div>
     <button
       onClick={handleScamper}

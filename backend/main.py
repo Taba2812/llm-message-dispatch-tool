@@ -36,7 +36,7 @@ except Exception as e:
     raise RuntimeError(f"Failed to connect: {e}") from e
 
 db = mongo_client["llm_message_dispatcher_tool"]
-collection = db["messages"]
+messages_collection = db["messages"]
 
 # Client connection
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
@@ -95,13 +95,8 @@ class ImageMessage(BaseModel):
     model: str = "black-forest-labs/FLUX.1-schnell-Free"
     n: int = 1
     prompt: str
-    # negative_prompt: str
-    steps: int = 20
-    # height: int = 1024
-    # width: int = 1024
-    # guidance: float = 3.5   # Higher values (e.g., 8-10) make the output more faithful to the prompt, while lower values (e.g., 1-5) encourage more creative freedom.
-    # response_format: str = "b64_json"
-    # output_format: str = "jpeg"
+    steps: int = 4
+    message_id: str
 
 async def call_model(model, message: Message):
     """Sends message to a specific model"""
@@ -130,16 +125,20 @@ async def store_message(message: Message, responses: list):
     }
 
     try:
-        result = collection.insert_one(document)
+        result = messages_collection.insert_one(document)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     
     return str(result.inserted_id)
 
-async def store_image(message: ImageMessage, response):
+async def store_image(message_id: ObjectId, image_url: str):
     """Stores image in the database"""
-    print("Image stored")
-    return "1"
+    
+    result = messages_collection.update_one(
+        {"_id": message_id},
+        {"$set": {"image_url": image_url}}
+    )
+    return message_id
 
 # GET
 @app.get("/", status_code=200)
@@ -151,9 +150,9 @@ async def root():
 async def get_messages():
     """Returns all message IDs"""
     try:
-        # message_ids = [str(document["_id"]) for document in collection.find({}, {"_id": 1})]
+        # message_ids = [str(document["_id"]) for document in messages_collectionfind({}, {"_id": 1})]
         messages = []
-        for doc in collection.find({}, {"_id": 1, "messages": 1, "timestamp": 1}):
+        for doc in messages_collection.find({}, {"_id": 1, "messages": 1, "timestamp": 1}):
             first_user_msg = next((m["content"] for m in doc["messages"] if m["role"] == "user"), "No user message")
             messages.append({
                 "id": str(doc["_id"]),
@@ -174,7 +173,7 @@ async def get_message(message_id: str):
         raise HTTPException(status_code=400, detail="Invalid message ID format")
 
     try:
-        document = collection.find_one({"_id": obj_id})
+        document = messages_collection.find_one({"_id": obj_id})
         if not document:
             raise HTTPException(status_code=404, detail="Message not found")
         document["_id"] = str(document["_id"])
@@ -201,26 +200,37 @@ async def send_message(message: Message):
         raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
 
 @app.post("/generate-image", status_code=201)
-async def generate_image(message: ImageMessage, ):
-    """Accepts a JSON containing a user/system message and dispatches it to LLMs"""
+async def generate_image(message: ImageMessage):
+    """Generates image based on LLM responses"""
+    try:
+        obj_id = ObjectId(message.message_id)
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid message ID format")
+
+    # Fetch message document
+    document = messages_collection.find_one({"_id": obj_id})
+    if not document:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    # Combine all model responses
+    responses = document.get("responses", [])
+    if not responses:
+        raise HTTPException(status_code=400, detail="No responses found to generate image from")
+    
+    combined_prompt = "\n".join(responses)
+    
     try:
         response = together_client.images.generate(
             model = message.model,
             n = message.n,
-            prompt = message.prompt,
-            # negative_prompt = message.negative_prompt,
+            prompt = message.prompt + combined_prompt,
             steps = message.steps,
-            # height = message.height,
-            # width = message.width,
-            # guidance = message.guidance,
-            # response_format = message.response_format,
-            # output_format = message.output_format
         )
 
-        print(response.data[0].b64_json)
+        image_url = response.data[0].url
 
-        # image_id = await store_image(message, response)
-        # print(image_id)
+        image_id = await store_image(obj_id, image_url)
+        print(image_id)
 
         return response
     except Exception as e:
@@ -241,7 +251,7 @@ async def delete_message(message_id: str):
         raise HTTPException(status_code=400, detail="Invalid message ID format")
 
     try:
-        result = collection.delete_one({"_id": obj_id})
+        result = messages_collection.delete_one({"_id": obj_id})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
             
