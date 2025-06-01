@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import Navbar from "../components/Navbar"; 
 
 function Message() {
   const [message, setMessage] = useState([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
+  const [imageLoading, setImageLoading] = useState(false);
   const apiUrl = import.meta.env.VITE_API_URL;
-  let params = useParams();
+  const navigate = useNavigate();
+  const params = useParams();
 
   useEffect(() => {
     fetch(`${apiUrl}/messages/${params.messageId}`)
@@ -21,67 +24,36 @@ function Message() {
       });
   }, [params.messageId]);
 
-  if (loading) return <p>Loading messages...</p>;
-  if (!message) return <p>Message not found.</p>;
-
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this message?")) return;
-
-    try {
-      const response = await fetch(`${apiUrl}/messages/${params.messageId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.detail || "Failed to delete message");
-      }
-
-      alert("Message deleted successfully");
-      navigate("/messages");
-    } catch (error) {
-      alert("Error: " + error.message);
-    }
-  };
-
-  const handleBack = async () => {
-    navigate("/messages");
-  };
-
   const handleImage = async () => {
     if (!window.confirm("Generate image based on the prompt responses?")) return;
-    const prompt = "Generate an image of the based on the following LLM responses. Don't put text or words of any kind."
+    setImageLoading(true);
+    const prompt = "Generate an image of the recipe based on the following LLM responses. Don't put text or words of any kind.";
+
     try {
       const res = await fetch(`${apiUrl}/generate-image`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "black-forest-labs/FLUX.1-schnell-Free",
-          prompt: prompt,
+          prompt,
           steps: 4,
           n: 1,
           message_id: params.messageId
         })
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Failed to generate image");
-      }
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Image generation failed");
+      if (!res.ok) throw new Error((await res.json()).detail || "Failed to generate image");
 
       const updated = await fetch(`${apiUrl}/messages/${params.messageId}`);
       const updatedData = await updated.json();
       setMessage(updatedData);
       alert("Image generated!");
-    } catch(error) {
-      alert("Error: " + error.message)
+    } catch (error) {
+      alert("Error: " + error.message);
+    } finally {
+      setImageLoading(false);
     }
-  }
+  };
 
   const handleScamper = async (step) => {
     const stepPrompts = {
@@ -99,162 +71,247 @@ function Message() {
     try {
       const res = await fetch(`${apiUrl}/scamper`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message_id: params.messageId,
           scamper_system: "You are a creative assistant applying the SCAMPER method. Use the SCAMPER step specified in the user message to enhance the response given",
           scamper_user: `SCAMPER step: ${step}`,
           step_content: userInput,
-          step: step
+          step
         })
       });
 
-      if(!res.ok){
-        const err = await res.json();
-        throw new Error(err.detail || "SCAMPER operation failed");
-      }
+      if (!res.ok) throw new Error((await res.json()).detail || "SCAMPER operation failed");
 
       const updated = await fetch(`${apiUrl}/messages/${params.messageId}`);
       const updatedData = await updated.json();
       setMessage(updatedData);
-      alert("SCAMPER operation completed!")
-    } catch(error) {
-      alert("Error: " + error.message)
+      alert("SCAMPER operation completed!");
+    } catch (error) {
+      alert("Error: " + error.message);
     }
-  }
+  };
 
   const formatLRMResponse = (text) => {
     const thinkTagRegex = /<think>(.*?)<\/think>/s;
     const match = text.match(thinkTagRegex);
 
     if (match) {
-      const reasoningContent = match[1]; // inside <think>
-      const response = text.replace(match[0], ''); // remove whole <think>...</think>
-
+      const reasoning = match[1];
+      const response = text.replace(match[0], '');
       return (
         <>
-          <span style={{ color: 'gold' }}>{'<think>'}</span>
-          <span style={{ color: 'silver' }}>{reasoningContent}</span>
-          <span style={{ color: 'gold' }}>{'</think>'}</span>
-          <span style={{ color: 'white' }}>{response}</span>
+          <p className="mb-2 text-warning"><strong>{'<think>'}</strong></p>
+          <p className="text-muted">{reasoning}</p>
+          <p className="mb-2 text-warning"><strong>{'</think>'}</strong></p>
+          <div className="text-dark">
+            <ReactMarkdown>{response}</ReactMarkdown>
+          </div>
         </>
       );
     }
 
-    return <span style={{ color: 'white' }}>{text}</span>;
+    return <div className="text-dark"><ReactMarkdown>{text}</ReactMarkdown></div>;
   };
 
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100" style={{
+        background: 'linear-gradient(135deg, #f5f1eb 0%, #e8dcc6 100%)',
+        fontFamily: "'Poppins', sans-serif"
+      }}>
+        <p className="fs-4 text-muted">Loading message...</p>
+      </div>
+    );
+  }
+
+  if (!message) return <p>Message not found.</p>;
+
   return (
-    <div>
-      <div>
-        <button
-          onClick={handleBack}
-          style={{
-            backgroundColor: 'white',
-            color: 'black',
-            border: 'none',
-            borderRadius: '5px',
-            marginBottom: '0.5rem',
-            cursor: 'pointer'
-          }}
-        >
-        Back to messages
-        </button>
+    <div className="min-vh-100" style={{
+      backgroundImage: 'url("/blob-haikei.png")',
+      backgroundSize: 'cover',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center center',
+      fontFamily: "'Poppins', sans-serif"
+    }}>
+      <Navbar />
+      <div className="container pb-5 px-4">
+        <nav aria-label="breadcrumb" className="mb-4">
+          <ol className="breadcrumb">
+            <li className="breadcrumb-item"><Link to="/" className="text-decoration-none">Home</Link></li>
+            <li className="breadcrumb-item"><Link to="/messages" className="text-decoration-none">My Recipes</Link></li>
+            <li className="breadcrumb-item active" aria-current="page">Message #{params.messageId.slice(0, 6)}...</li>
+          </ol>
+        </nav>
+
+        <h2 className="fw-bold mb-4" style={{ color: '#2d5016' }}>Message Details</h2>
+
+        <div className="row mb-5">
+          <div className="col-md-7">
+            <div className="mb-4">
+              <p><strong>Message ID:</strong> {message._id}</p>
+              <p><strong>Temperature:</strong> {message.temperature}</p>
+              <p><strong>Max Tokens:</strong> {message.max_tokens || "No limit"}</p>
+              <p><strong>Timestamp:</strong> {new Date(message.timestamp).toLocaleString()}</p>
+            </div>
+
+            <h5 className="text-success"><i className="bi bi-pen"></i> Prompt</h5>
+            <div className="mb-4">
+              {message.messages.map((msg, index) => (
+                <div key={index} className="mb-2">
+                  <strong>{msg.role.charAt(0).toUpperCase() + msg.role.slice(1)} message:</strong> {msg.content}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {message.image_url && (
+            <div className="mb-4">
+              <h5 className="text-success"><i className="bi bi-image"></i> Generated Image</h5>
+              <img
+                src={message.image_url}
+                alt="Generated"
+                style={{ width: "100%", maxWidth: "256px", height: "auto", objectFit: "cover" }}
+                className="rounded shadow"
+              />
+            </div>
+          )}
+        </div>
+
+        <h4 className="text-success mb-2"><i className="bi bi-cpu"></i> Model Responses</h4>
+        {message.responses?.length > 0 && (
+          <div className="accordion mb-4" id="modelResponsesAccordion">
+            {message.responses.map((res, index) => (
+              <div className="accordion-item" key={index}>
+                <h2 className="accordion-header" id={`heading${index}`}>
+                  <button
+                    className="accordion-button collapsed"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target={`#collapse${index}`}
+                    aria-expanded="false"
+                    aria-controls={`collapse${index}`}
+                  >
+                    {message.models?.[index] || `Model ${index + 1}`}
+                  </button>
+                </h2>
+                <div
+                  id={`collapse${index}`}
+                  className="accordion-collapse collapse"
+                  aria-labelledby={`heading${index}`}
+                  data-bs-parent="#modelResponsesAccordion"
+                >
+                  <div className="accordion-body">
+                    {formatLRMResponse(res)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* SCAMPER Buttons */}
+        <div className="mb-4">
+        <h4 className="text-success mb-2"><i className="bi bi-magic"></i> Try SCAMPER</h4>
+        <div className="d-flex flex-wrap gap-3">
+            {[
+              { step: "substitute", icon: "shuffle", color: "#e1f5fe" },
+              { step: "combine", icon: "collection", color: "#e8f5e9" },
+              { step: "adjust", icon: "sliders", color: "#fff3e0" },
+              { step: "modify", icon: "tools", color: "#f3e5f5" },
+              { step: "put_to_other_uses", icon: "lightbulb", color: "#fce4ec" },
+              { step: "eliminate", icon: "trash", color: "#ffebee" },
+              { step: "reverse", icon: "arrow-repeat", color: "#ede7f6" },
+            ].map(({ step, icon, color }) => (
+              <div
+                key={step}
+                onClick={() => handleScamper(step)}
+                style={{
+                  background: color,
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  minWidth: "120px",
+                  textAlign: "center",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  transition: "all 0.2s",
+                }}
+                className="hover-shadow"
+              >
+                <i className={`bi bi-${icon} mb-1`} style={{ fontSize: "1.2rem" }}></i>
+                <div style={{ fontSize: "0.9rem", fontWeight: "500" }}>
+                  {step.replaceAll("_", " ").replace(/^\w/, c => c.toUpperCase())}
+                </div>
+              </div>
+            ))}
+          </div>
+
+        </div>
+
+        {/* SCAMPER Results */}
+        {message.scamper && Object.keys(message.scamper).length > 0 && (
+          <>
+            <h4 className="text-success mb-2"><i className="bi bi-lightbulb"></i> SCAMPER Responses</h4>
+            <div className="accordion mb-4" id="scamperAccordion">
+              {Object.entries(message.scamper).map(([step, responses], index) => (
+                Array.isArray(responses) && responses.some(text => text.trim()) && (
+                  <div className="accordion-item" key={step}>
+                    <h2 className="accordion-header" id={`scamper-heading-${index}`}>
+                      <button
+                        className="accordion-button collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target={`#scamper-collapse-${index}`}
+                        aria-expanded="false"
+                        aria-controls={`scamper-collapse-${index}`}
+                      >
+                        {step.replaceAll('_', ' ').replace(/^\w/, c => c.toUpperCase())}
+                      </button>
+                    </h2>
+                    <div
+                      id={`scamper-collapse-${index}`}
+                      className="accordion-collapse collapse"
+                      aria-labelledby={`scamper-heading-${index}`}
+                      data-bs-parent="#scamperAccordion"
+                    >
+                      <div className="accordion-body">
+                        {responses
+                          .filter(text => text.trim())
+                          .map((text, idx) => (
+                            <div key={idx} className="mb-3">
+                              {formatLRMResponse(text)}
+                            </div>
+                        ))}
+                      </div>
+
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          </>
+        )}
+
+
+        {/* Action Buttons */}
+        <div className="d-flex flex-wrap mt-3">
+          <button className="btn button-orange me-2 mb-2" onClick={() => navigate("/messages")}>
+            Back to Messages
+          </button>
+          <button className="btn button-purple mb-2" onClick={handleImage} disabled={imageLoading}>
+            {imageLoading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Generating...
+              </>
+            ) : (
+              <>Generate Image <i className="bi bi-image"></i></>
+            )}
+          </button>
+        </div>
       </div>
-
-      <div><strong className='item'>Message ID </strong><strong>{message._id}</strong></div>
-      <div><strong className='item'>Temperature </strong><strong>{message.temperature}</strong></div>
-      <div><strong className='item'>Max Tokens </strong><strong>{message.max_tokens || "No limit"}</strong></div>
-      <div><strong className='item'>Timestamp </strong><strong>{new Date(message.timestamp).toLocaleString()}</strong></div>
-
-      <h2>Prompt</h2>
-        {message.messages.map((msg, index) => (
-          <div key={index}>
-            <strong className='item'>{msg.role.charAt(0).toUpperCase() + msg.role.slice(1) + " message"}:</strong> <strong>{msg.content}</strong>
-          </div>
-        ))}
-
-      <h2>Model Responses</h2>
-  <ul>
-    {message.responses.map((res, index) => (
-      <li key={index}>
-        <strong className='item'>{message.models?.[index] || 'Unknown Model'}:</strong>
-        <strong> {formatLRMResponse(res)}</strong>
-      </li>
-    ))}
-  </ul>
-  <div>
-    <h1>Let's SCAMPER!</h1>
-    <button onClick={() => handleScamper('substitute')} className='scamper'>Substitute</button>
-    <button onClick={() => handleScamper('combine')} className='scamper'>Combine</button>
-    <button onClick={() => handleScamper('adjust')} className='scamper'>Adjust</button>
-    <button onClick={() => handleScamper('modify')} className='scamper'>Modify</button>
-    <button onClick={() => handleScamper('put_to_other_uses')} className='scamper'>Put to other uses</button>
-    <button onClick={() => handleScamper('eliminate')} className='scamper'>Eliminate</button>
-    <button onClick={() => handleScamper('reverse')} className='scamper'>Reverse</button>
-  </div>
-  {message.scamper && (
-    <div>
-      {Object.entries(message.scamper).map(([step, responses]) =>
-        Array.isArray(responses) && responses.some(text => text.trim()) ? (
-          <div key={step} style={{ marginBottom: '1rem' }}>
-            <h3 className='item' style={{ textTransform: 'capitalize' }}>{step}</h3>
-            <ul>
-              {responses
-                .filter(text => text.trim())
-                .map((text, index) => (
-                  <li key={index} style={{ marginBottom: '0.5rem' }}>
-                    <pre style={{ whiteSpace: 'pre-wrap', color: 'white' }}>{text}</pre>
-                  </li>
-                ))}
-            </ul>
-          </div>
-        ) : null
-      )}
     </div>
-  )}
-  <div>
-    {message.image_url && (
-      <div style={{ marginTop: '1rem' }}>
-        <h3>Generated Image</h3>
-        <img src={message.image_url} alt="Generated" style={{ width: "256px", height: "256px", objectFit: "cover" }} />
-      </div>
-    )}
-  </div>
-  <div>
-    <button
-      onClick={handleImage}
-      style={{
-        marginTop: '1rem',
-        padding: '0.5rem 1rem',
-        backgroundColor: 'white',
-        color: 'black',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
-      }}
-    >
-      Generate Image
-    </button>
-  </div>
-    <button
-    onClick={handleDelete}
-    style={{
-      marginTop: '0.5rem',
-      padding: '0.5rem 1rem',
-      backgroundColor: 'darkred',
-      color: 'white',
-      border: 'none',
-      borderRadius: '5px',
-      cursor: 'pointer'
-    }}
-  >
-    Delete Message
-    </button>
-</div>
-
   );
 }
 
