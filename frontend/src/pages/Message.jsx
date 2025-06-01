@@ -50,7 +50,7 @@ function Message() {
 
   const handleImage = async () => {
     if (!window.confirm("Generate image based on the prompt responses?")) return;
-    const prompt = "Generate an image of the recipe based on the following LLM responses. Don't put text or words of any kind."
+    const prompt = "Generate an image of the based on the following LLM responses. Don't put text or words of any kind."
     try {
       const res = await fetch(`${apiUrl}/generate-image`, {
         method: "POST",
@@ -83,9 +83,46 @@ function Message() {
     }
   }
 
-  const handleScamper = async () => {
-    if (!window.confirm("TO DO")) return;
-    else return;
+  const handleScamper = async (step) => {
+    const stepPrompts = {
+      substitute: "What would you substitute in the current response?",
+      combine: "What would you like to combine this with?",
+      adjust: "What aspect would you adjust or tweak?",
+      modify: "How would you modify or magnify the idea?",
+      put_to_other_uses: "What other uses can you think of for this idea?",
+      eliminate: "What can be removed or simplified?",
+      reverse: "What would happen if we reversed or rearranged the idea?",
+    };
+    const userInput = window.prompt(stepPrompts[step], "");
+    if (!userInput) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/scamper`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message_id: params.messageId,
+          scamper_system: "You are a creative assistant applying the SCAMPER method. Use the SCAMPER step specified in the user message to enhance the response given",
+          scamper_user: `SCAMPER step: ${step}`,
+          step_content: userInput,
+          step: step
+        })
+      });
+
+      if(!res.ok){
+        const err = await res.json();
+        throw new Error(err.detail || "SCAMPER operation failed");
+      }
+
+      const updated = await fetch(`${apiUrl}/messages/${params.messageId}`);
+      const updatedData = await updated.json();
+      setMessage(updatedData);
+      alert("SCAMPER operation completed!")
+    } catch(error) {
+      alert("Error: " + error.message)
+    }
   }
 
   const formatLRMResponse = (text) => {
@@ -149,6 +186,36 @@ function Message() {
     ))}
   </ul>
   <div>
+    <h1>Let's SCAMPER!</h1>
+    <button onClick={() => handleScamper('substitute')} className='scamper'>Substitute</button>
+    <button onClick={() => handleScamper('combine')} className='scamper'>Combine</button>
+    <button onClick={() => handleScamper('adjust')} className='scamper'>Adjust</button>
+    <button onClick={() => handleScamper('modify')} className='scamper'>Modify</button>
+    <button onClick={() => handleScamper('put_to_other_uses')} className='scamper'>Put to other uses</button>
+    <button onClick={() => handleScamper('eliminate')} className='scamper'>Eliminate</button>
+    <button onClick={() => handleScamper('reverse')} className='scamper'>Reverse</button>
+  </div>
+  {message.scamper && (
+    <div>
+      {Object.entries(message.scamper).map(([step, responses]) =>
+        Array.isArray(responses) && responses.some(text => text.trim()) ? (
+          <div key={step} style={{ marginBottom: '1rem' }}>
+            <h3 className='item' style={{ textTransform: 'capitalize' }}>{step}</h3>
+            <ul>
+              {responses
+                .filter(text => text.trim())
+                .map((text, index) => (
+                  <li key={index} style={{ marginBottom: '0.5rem' }}>
+                    <pre style={{ whiteSpace: 'pre-wrap', color: 'white' }}>{text}</pre>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ) : null
+      )}
+    </div>
+  )}
+  <div>
     {message.image_url && (
       <div style={{ marginTop: '1rem' }}>
         <h3>Generated Image</h3>
@@ -157,21 +224,6 @@ function Message() {
     )}
   </div>
   <div>
-    <button
-      onClick={handleScamper}
-      style={{
-        marginTop: '1rem',
-        marginRight: '0.5rem',
-        padding: '0.5rem 1rem',
-        backgroundColor: 'white',
-        color: 'black',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
-      }}
-    >
-      Get creative!
-    </button>
     <button
       onClick={handleImage}
       style={{

@@ -85,10 +85,21 @@ class Message(BaseModel):
             raise ValueError("Messages must include both a 'system' and a 'user' role.")
         return self
     
-system_prompt = (
-    "First string"
-    "Second string"
-)
+class ScamperStep(str, Enum):
+    substitute = "substitute"
+    combine = "combine"
+    adjust = "adjust"
+    modify = "modify"
+    put_to_other_uses = "put_to_other_uses"
+    eliminate = "eliminate"
+    reverse = "reverse"
+    
+class ScamperRequest(BaseModel):
+    message_id: str
+    scamper_system: str = "You are a creative assistant applying the SCAMPER method. Use the SCAMPER step specified in the user message to enhance the response given"
+    scamper_user: str = "SCAMPER step: "
+    step_content: str
+    step: ScamperStep
 
 class ImageMessage(BaseModel):
     "Class for image prompt"
@@ -100,6 +111,7 @@ class ImageMessage(BaseModel):
 
 async def call_model(model, message: Message):
     """Sends message to a specific model"""
+    print(message.to_dict())
     try:
         response = together_client.chat.completions.create(
             model=model,
@@ -131,10 +143,25 @@ async def store_message(message: Message, responses: list):
     
     return str(result.inserted_id)
 
+async def store_scamper(message_id: str, responses: list[str], request: ScamperRequest):
+    """Stores scamper response in message"""
+
+    combined = ["Your prompt: " + request.step_content + "\n\n" + response for response in responses]
+
+    try:
+        messages_collection.update_one(
+            {"_id": ObjectId(message_id)},
+            {"$set": {f"scamper.{request.step.value}": combined}}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+    return message_id
+
 async def store_image(message_id: ObjectId, image_url: str):
     """Stores image in the database"""
     
-    result = messages_collection.update_one(
+    messages_collection.update_one(
         {"_id": message_id},
         {"$set": {"image_url": image_url}}
     )
@@ -195,6 +222,44 @@ async def send_message(message: Message):
         return {
             "message_id": str(message_id),
             "responses": responses
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
+    
+@app.post("/scamper")
+async def perform_scamper(request: ScamperRequest):
+    """Takes SCAMPER request and applies modification to message"""
+    message = await get_message(request.message_id)
+    if not message.get("responses"):
+        raise HTTPException(status_code=400, detail="No responses found in message")
+    
+    system_message = ChatMessage(role=Role.system, content=request.scamper_system)
+    user_message = [
+        ChatMessage(role=Role.user, content=f"{request.scamper_user}{request.step.value}. Request: {request.step_content}. Content to enhance: {response}") for response in message["responses"]
+    ]
+
+    scamper_message = Message(
+        models = message["models"],
+        messages = [system_message] + user_message,
+        temperature = message.get("temperature", 0.5),
+        max_tokens = message.get("max_tokens")
+    )
+    
+    try:
+        tasks = [call_model(model, Message(
+            models = [model],
+            messages = [system_message, usr_msg],
+            temperature = scamper_message.temperature,
+            max_tokens = scamper_message.max_tokens,
+        )) for model, usr_msg in zip(scamper_message.models, user_message)]
+        responses = await asyncio.gather(*tasks)
+
+        scamper_response = await store_scamper(request.message_id, responses, request)
+
+        return {
+            "message_id": str(request.message_id),
+            "step": request.step,
+            "response": scamper_response
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process message: {e}")
