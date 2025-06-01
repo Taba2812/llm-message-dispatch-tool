@@ -1,20 +1,21 @@
 body {
   background-color: black;
+  font-family: 'Poppins', sans-serif;
 }
 
+
 h1,h2,h3,h4,h5,h6 {
-  color: white;
+  color: black;
   text-align: left;
 }
 
 p,div {
-  color: white;
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 12px;
+  color: black;
+  font-size: 16px;
 }
 
 strong {
-  color: white
+  color: black
 }
 
 .title {
@@ -45,13 +46,70 @@ strong {
   margin-bottom: 20px;
 }
 
-.scamper {
-  margin-top: '1rem';
-  margin-right: '0.5rem';
-  padding: '0.5rem 1rem';
-  background-color: 'white';
-  color: 'black';
-  border: 'none';
-  border-radius: '5px';
-  cursor: 'pointer';
+/* Global navbar text styling */
+.navbar-nav .nav-link {
+  font-size: 1.25rem; /* ~20px */
+  font-weight: 600;
+  color: #2d5016;
+}
+
+.navbar-brand span {
+  font-size: 2rem; /* ~32px */
+  color: #2d5016;
+}
+
+.button-green {
+  color: white;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  background-color: #28a745;
+  border: none;
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+  letter-spacing: 1px;
+  padding: 12px;
+}
+
+.button-purple {
+  color: white;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  background-color: #8b9dc3;
+  border: none;
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+  letter-spacing: 1px;
+  padding: 12px;
+}
+
+.button-orange {
+  color: white;
+  border-radius: 50px;
+  font-size: 0.9rem;
+  background-color: #fa8900;
+  border: none;
+  box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+  letter-spacing: 1px;
+  padding: 12px;
+}
+
+a {
+  color: #fa8900;
+}
+a:hover {
+  color: #8b9dc3;
+}
+
+
+.pagination .page-item .page-link {
+  color: #fa8900;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #fa8900;
+  border-color: #fa8900;
+  color: white;
+}
+
+.accordion-button:not(.collapsed) {
+  background-color: #8b9dc3;
+  color: white;
 }
