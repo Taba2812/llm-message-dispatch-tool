@@ -17,6 +17,7 @@ Frontend Setup:
 - nvm alias default 20 (to make it default)
 - nvm use 20
 - npm install
+- npm install react-markdown
 
 Frontend Deployment
 - npm run dev
